@@ -1,4 +1,5 @@
 from app import app
+import os
 from config import Config
 import queue
 from file_monitor import scan_and_queue_existing_mp3s, start_observer
@@ -8,8 +9,11 @@ import threading
 import random
 
 
+
 # Initialize the email queue globally
 email_queue = queue.Queue()
+
+os.makedirs(Config.LOG_DIR, exist_ok=True)  # Create the log directory if it doesn't exist
 
 def update_email_queue(email_queue, new_beats, contacts):
     # Extract existing tasks from the queue
@@ -42,8 +46,13 @@ def populate_email_queue(beats, contacts):
             email_task = {'contact': contact, 'beat': beat}
             email_queue.put(email_task)
 
+def ensure_log_directory_exists():
+    if not os.path.exists(Config.LOG_DIR):
+        os.makedirs(Config.LOG_DIR)
+
 if __name__ == '__main__':
-    valid_beats = scan_and_queue_existing_mp3s("/Users/lifecrzy/Desktop/777")
+    ensure_log_directory_exists()
+    valid_beats = scan_and_queue_existing_mp3s(Config.MONITOR_DIRECTORY)
     populate_email_queue(valid_beats, contacts)
 
     email_thread = threading.Thread(target=process_email_queue, args=(email_queue,))
@@ -52,6 +61,6 @@ if __name__ == '__main__':
     observer_thread = threading.Thread(target=start_observer) # Start the observer in a new thread
     observer_thread.start()
 
-    scheduled_beat_check("/Users/lifecrzy/Desktop/777", 25200, email_queue, contacts)  # 25200 seconds = 7 hours
+    scheduled_beat_check(Config.MONITOR_DIRECTORY, 25200, email_queue, contacts)  # 25200 seconds = 7 hours
 
     app.run(debug=True, use_reloader=False)
