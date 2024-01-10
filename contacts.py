@@ -25,7 +25,7 @@ contacts = [
    # {'name': 'Fleacoo', 'email': 'whoafleacoo@gmail.com'},
    # {'name': 'Anyciaa', 'email': 'bignene.atl@gmail.com'},
    # {'name': 'Nyla', 'email': 'djnylasymone@gmail.com'},
-   # {'name': 'Anyciaa', 'email': 'ygaddie@icloud.com'},
+   # {'name': 'Asap Ant', 'email': 'ygaddie@icloud.com'},
    # {'name': 'Swapa', 'email': '1swapafr@gmail.com'},
    # {'name': 'Khalil', 'email': 'dmorgan707@gmail.com'},
    # {'name': 'Samaad', 'email': 'beats4samaad@gmail.com'},

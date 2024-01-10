@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables from .env file
 load_dotenv()
@@ -11,7 +12,11 @@ class Config:
 
     # File Monitoring Configuration
     MONITOR_DIRECTORY = os.getenv('MONITOR_DIRECTORY')
-    LOG_FILE_PATH = os.getenv('LOG_FILE_PATH')
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Assumes config.py is in the project root
+    LOG_DIR = os.path.join(BASE_DIR, 'logs')
+    LOG_FILE_NAME = f"application_log_{datetime.now().strftime('%Y%m%d')}.log"  # Daily log files
+    LOG_FILE_PATH = os.path.join(LOG_DIR, LOG_FILE_NAME)
+
 
     # Email Configuration for Notifications
     EMAIL_HOST = os.getenv('EMAIL_HOST')
@@ -22,7 +27,7 @@ class Config:
     EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 
     # Flask Application Settings
-    FLASK_RUN_PORT = int(os.getenv('FLASK_RUN_PORT', 5000))
+    FLASK_RUN_PORT = int(os.getenv('FLASK_RUN_PORT', '5000'))
     FLASK_RUN_HOST = os.getenv('FLASK_RUN_HOST', '127.0.0.1')
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
     SECRET_KEY = os.getenv('SECRET_KEY')
