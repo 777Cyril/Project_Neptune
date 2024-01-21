@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from app import app
 import os
 from config import Config
@@ -8,7 +9,8 @@ from contacts import contacts
 import threading
 import random
 
-
+load_dotenv()  # This loads the .env file at the root of the project
+print(os.getenv('FLASK_RUN_PORT'))
 
 # Initialize the email queue globally
 email_queue = queue.Queue()
