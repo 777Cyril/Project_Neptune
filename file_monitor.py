@@ -14,13 +14,13 @@ AIRTABLE_BASE_ID = os.environ.get('AIRTABLE_BASE_ID')
 AIRTABLE_PERSONAL_ACCESS_TOKEN = os.environ.get('AIRTABLE_PERSONAL_ACCESS_TOKEN')
 AIRTABLE_BEATS_TABLE_NAME = 'Beats' 
 
-headers = {
-    'Authorization': f'Bearer {AIRTABLE_PERSONAL_ACCESS_TOKEN}'
-}
+#headers = {
+    #'Authorization': f'Bearer {AIRTABLE_PERSONAL_ACCESS_TOKEN}'
+#}
 
-airtable_beats = Airtable(AIRTABLE_BASE_ID, AIRTABLE_BEATS_TABLE_NAME, api_key=None, headers=headers)
-airtable_contacts = Airtable(AIRTABLE_BASE_ID, 'Contacts', api_key=None, headers=headers)
-airtable_email_queue = Airtable(AIRTABLE_BASE_ID, 'EmailQueue', api_key=None, headers=headers)
+#airtable_beats = Airtable(AIRTABLE_BASE_ID, AIRTABLE_BEATS_TABLE_NAME, api_key=None, headers=headers)
+#airtable_contacts = Airtable(AIRTABLE_BASE_ID, 'Contacts', api_key=None, headers=headers)
+#airtable_email_queue = Airtable(AIRTABLE_BASE_ID, 'EmailQueue', api_key=None, headers=headers)
 
 file_monitor_logger = setup_logger("file_monitor")
 
@@ -85,14 +85,14 @@ def update_beat_in_airtable(beat_name, updated_metadata):
     # ...
 
     # Airtable API URL for updating a specific record
-    update_url = f'{airtable_api_url}/{record_id}'
+    #update_url = f'{airtable_api_url}/{record_id}'
 
-    response = requests.patch(update_url, headers=headers, json={"fields": updated_metadata})
+    #response = requests.patch(update_url, headers=headers, json={"fields": updated_metadata})
     
-    if response.status_code == 200:
-        print("Successfully updated beat in Airtable.")
-    else:
-        print(f"Failed to update beat in Airtable: {response.status_code} {response.text}")
+    #if response.status_code == 200:
+      #  print("Successfully updated beat in Airtable.")
+   # else:
+       # print(f"Failed to update beat in Airtable: {response.status_code} {response.text}")
 
 def delete_beat_from_airtable(beat_name):
     # Logic to find and delete a record from Airtable
@@ -154,13 +154,13 @@ class MyHandler(FileSystemEventHandler):
             old_beat_name = os.path.basename(old_path)
             new_beat_name = os.path.basename(new_path)
 
-            if is_within_monitored_folder(new_path):  # You need to implement this check
-                updated_metadata = {'Beat Name': new_beat_name}
-                update_beat_in_airtable(old_beat_name, updated_metadata)
-                file_monitor_logger.info(f"MP3 file renamed within folder: {old_beat_name} to {new_beat_name}")
-            else:
-                delete_beat_from_airtable(old_beat_name)
-                file_monitor_logger.info(f"MP3 file moved out of folder and removed from Airtable: {old_beat_name}")
+            #if is_within_monitored_folder(new_path):  # You need to implement this check
+                #updated_metadata = {'Beat Name': new_beat_name}
+                #update_beat_in_airtable(old_beat_name, updated_metadata)
+               # file_monitor_logger.info(f"MP3 file renamed within folder: {old_beat_name} to {new_beat_name}")
+            #else:
+               # delete_beat_from_airtable(old_beat_name)
+               # file_monitor_logger.info(f"MP3 file moved out of folder and removed from Airtable: {old_beat_name}")
         
 # Function to start the observer
 def start_observer():

@@ -27,7 +27,7 @@ class Config:
     EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 
     # Flask Application Settings
-    FLASK_RUN_PORT = int(os.getenv('FLASK_RUN_PORT', '5000'))
+    FLASK_RUN_PORT = 5000
     FLASK_RUN_HOST = os.getenv('FLASK_RUN_HOST', '127.0.0.1')
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
     SECRET_KEY = os.getenv('SECRET_KEY')
