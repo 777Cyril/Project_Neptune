@@ -65,4 +65,4 @@ if __name__ == '__main__':
 
     scheduled_beat_check(Config.MONITOR_DIRECTORY, 25200, email_queue, contacts)  # 25200 seconds = 7 hours
 
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True, port=Config.FLASK_RUN_PORT, use_reloader=False)
