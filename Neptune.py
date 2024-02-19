@@ -5,10 +5,10 @@ from config import Config
 import queue
 from file_monitor import scan_and_queue_existing_mp3s, start_observer
 from email_service import process_email_queue
-from contacts import contacts
 import threading
 import random
 from file_monitor import BeatManager
+from airtable_client import Airtable
 
 load_dotenv()  # This loads the .env file at the root of the project
 
@@ -36,15 +36,22 @@ def update_email_queue(email_queue, new_beats, contacts):
         for contact in contacts:
             email_queue.put({'contact': contact, 'beat': beat})
 
-def scheduled_beat_check(directory, interval, email_queue, contacts):
+def scheduled_beat_check(directory, interval):
     beat_manager = BeatManager()
     new_beats = beat_manager.scan_and_queue_existing_mp3s(directory)
-    beat_manager.update_email_queue_with_new_beats(email_queue, new_beats, contacts)
-    
+    populate_email_queue(new_beats)
     # Reschedule the beat check
-    threading.Timer(interval, scheduled_beat_check, args=(directory, interval, email_queue, contacts)).start()
+    threading.Timer(interval, scheduled_beat_check, args=(directory, interval)).start()
 
-def populate_email_queue(beats, contacts):
+def fetch_contacts():
+    # Fetch contact information dynamically from Airtable
+    contacts_client = Airtable('Contacts')
+    records = contacts_client.read_records()
+    contacts = [{'email': record['fields'].get('Email'), 'name': record['fields'].get('Name')} for record in records if 'Email' in record['fields']]
+    return contacts
+
+def populate_email_queue(beats):
+    contacts = fetch_contacts()  # Fetch contacts dynamically
     for beat in beats:
         for contact in contacts:
             email_task = {'contact': contact, 'beat': beat}
@@ -54,13 +61,11 @@ def ensure_log_directory_exists():
     if not os.path.exists(Config.LOG_DIR):
         os.makedirs(Config.LOG_DIR)
 
-
-
 if __name__ == '__main__':
     # Initial setup: Ensure log directory exists and populate the email queue
     ensure_log_directory_exists()
     valid_beats = scan_and_queue_existing_mp3s(Config.MONITOR_DIRECTORY)
-    populate_email_queue(valid_beats, contacts)
+    populate_email_queue(valid_beats)
     
     # Start the email processing thread
     email_thread = threading.Thread(target=process_email_queue, args=(email_queue,))
@@ -72,7 +77,7 @@ if __name__ == '__main__':
     observer_thread.start()
 
     # Start the scheduled beat check
-    scheduled_beat_check(Config.MONITOR_DIRECTORY, 25200, email_queue, contacts)  # 25200 seconds = 7 hours
+    scheduled_beat_check(Config.MONITOR_DIRECTORY, 25200)  # 25200 seconds = 7 hours
 
     # Start the Flask application
     app.run(debug=True, port=Config.FLASK_RUN_PORT, use_reloader=False)
