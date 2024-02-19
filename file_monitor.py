@@ -9,130 +9,51 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from logger import setup_logger
 from config import Config
+from datetime import datetime
+from email_service import send_email
 
-AIRTABLE_BASE_ID = os.environ.get('AIRTABLE_BASE_ID')
-AIRTABLE_PERSONAL_ACCESS_TOKEN = os.environ.get('AIRTABLE_PERSONAL_ACCESS_TOKEN')
-AIRTABLE_BEATS_TABLE_NAME = 'Beats' 
-
-#headers = {
-    #'Authorization': f'Bearer {AIRTABLE_PERSONAL_ACCESS_TOKEN}'
-#}
-
-#airtable_beats = Airtable(AIRTABLE_BASE_ID, AIRTABLE_BEATS_TABLE_NAME, api_key=None, headers=headers)
-#airtable_contacts = Airtable(AIRTABLE_BASE_ID, 'Contacts', api_key=None, headers=headers)
-#airtable_email_queue = Airtable(AIRTABLE_BASE_ID, 'EmailQueue', api_key=None, headers=headers)
 
 file_monitor_logger = setup_logger("file_monitor")
 
-
-#Function definitions
-def extract_metadata(file_path):
-    audio = MP3(file_path)
-    beat_name = os.path.basename(file_path)
-    date_created = time.ctime(os.path.getmtime(file_path))
-    
-    if audio.info.length:
-        minutes, seconds = divmod(int(audio.info.length), 60)
-        length_formatted = f"{minutes}:{seconds:02d}"
-    else:
-        length_formatted = "Unknown Length"
-
-    metadata = {
-        'Beat Name': beat_name,
-        'File Path': file_path,
-        'Key': None, # To be implemented later
-        'BPM': None, # To be implemented later
-        'Length': length_formatted,
-        'Genre': None, # users to fill this in later or implement a feature that suggests genres based on other metadata or analysis.
-        'Date Created': date_created
-    }
-    return metadata
-
-def validate_mp3(file_path):
+def start_observer():
+    path = Config.MONITOR_DIRECTORY
+    if not path:
+        raise ValueError("The MONITOR_DIRECTORY environment variable is not set")
+    beat_manager = BeatManager()  # Create an instance of BeatManager
+    event_handler = MyHandler(beat_manager)  # Pass BeatManager instance to MyHandler
+    observer = Observer()
+    observer.schedule(event_handler, path, recursive=False)
+    observer.start()
     try:
-        audio = MP3(file_path)  # Attempt to load the MP3 file's metadata using mutagen
-        return True  # If no exception is raised, the file is likely a valid MP3
-    except MutagenError:
-        return False  # If an exception is raised, the file is likely invalid or corrupt
-
-#Airtable CRUD Functions
-def add_beat_to_airtable(metadata):
-    airtable_api_url = f'https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_BEATS_TABLE_NAME}'
-    headers = {
-        'Authorization': f'Bearer {AIRTABLE_PERSONAL_ACCESS_TOKEN}',
-        'Content-Type': 'application/json'
-    }
-    
-    # Preparing the payload for the POST request
-    data = {
-        'fields': metadata
-    }
-
-    response = requests.post(airtable_api_url, headers=headers, json=data)
-
-    if response.status_code in [200, 201]:  # 201 is the typical success status code for POST
-        print("Successfully added beat to Airtable.")
-    else:
-        print(f"Failed to add beat to Airtable: {response.status_code} {response.text}")
-
-def update_beat_in_airtable(beat_name, updated_metadata):
-    headers = {
-        'Authorization': f'Bearer {AIRTABLE_PERSONAL_ACCESS_TOKEN}',
-        'Content-Type': 'application/json'
-    }
-    
-    # Logic to find the record ID by beat_name
-    # ...
-
-    # Airtable API URL for updating a specific record
-    #update_url = f'{airtable_api_url}/{record_id}'
-
-    #response = requests.patch(update_url, headers=headers, json={"fields": updated_metadata})
-    
-    #if response.status_code == 200:
-      #  print("Successfully updated beat in Airtable.")
-   # else:
-       # print(f"Failed to update beat in Airtable: {response.status_code} {response.text}")
-
-def delete_beat_from_airtable(beat_name):
-    # Logic to find and delete a record from Airtable
-    # Example: You might search for a record with a matching 'Beat Name' and then send a DELETE request
-    pass
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
 
 # Will scan the specified directory, validate the MP3 files, and return a list of the valid ones.
 # This list is then used in neptune.py to populate the email queue with tasks.
 # Each task will consist of a beat and a contact to whom the email will be sent.
-def scan_and_queue_existing_mp3s(directory):
-    valid_mp3_files = []  # List to store valid MP3 file paths
-    existing_mp3_files = glob.glob(os.path.join(directory, '*.mp3')) # Get a list of all MP3 files in the directory
-    
-    sorted_files = sorted(existing_mp3_files, key=os.path.getmtime, reverse=True)
+class MyHandler(FileSystemEventHandler):
+    def __init__(self, beat_manager):
+        self.beat_manager = beat_manager
 
-    for file_path in sorted_files:
-        if validate_mp3(file_path):
-            valid_mp3_files.append(file_path)
-            print(f"Existing valid MP3 file added to queue: {file_path}")
-        else:
-            print(f"Existing file failed validation and was not added to queue: {file_path}")
-    return valid_mp3_files
-
-# Define event handler class
-class MyHandler(FileSystemEventHandler): 
     def on_created(self, event):
         if not event.is_directory:
             file_path = event.src_path
-            file_name, file_extension = os.path.splitext(file_path)
-            if file_extension.lower() == '.mp3':
-                if validate_mp3(file_path):
-                    # Extract metadata and upload to Airtable
-                    metadata = extract_metadata(file_path)
-                    add_beat_to_airtable(metadata)
-                    file_monitor_logger.info(f"Valid MP3 beat detected: {file_name}, Path: {file_path}")
+            if file_path.lower().endswith('.mp3'):
+                if self.beat_manager.validate_mp3(file_path):
+                    metadata = self.beat_manager.extract_metadata(file_path)
+                    if metadata:
+                        self.beat_manager.add_beat_to_airtable(metadata)
+                        file_monitor_logger.info(f"Valid MP3 beat detected and added to Airtable: {file_path}")
+                        self.process_beat_for_all_contacts(file_path, metadata)
+                    else:
+                        file_monitor_logger.warning(f"Valid MP3 file detected but metadata extraction failed: {file_path}")
                 else:
-                    file_monitor_logger.warning(f"Invalid MP3 file detected: {file_name}, Path: {file_path}")
-            else:
-                file_monitor_logger.info(f"Non-MP3 file detected: {file_name}, Path: {file_path}")
-    def on_deleted(self, event):
+                    file_monitor_logger.warning(f"Invalid MP3 file detected: {file_path}")
+
+    '''def on_deleted(self, event):
         if not event.is_directory and event.src_path.endswith('.mp3'):
             file_path = event.src_path
             beat_name = os.path.basename(file_path)
@@ -154,26 +75,121 @@ class MyHandler(FileSystemEventHandler):
             old_beat_name = os.path.basename(old_path)
             new_beat_name = os.path.basename(new_path)
 
-            #if is_within_monitored_folder(new_path):  # You need to implement this check
+            if is_within_monitored_folder(new_path):  # You need to implement this check
                 #updated_metadata = {'Beat Name': new_beat_name}
                 #update_beat_in_airtable(old_beat_name, updated_metadata)
                # file_monitor_logger.info(f"MP3 file renamed within folder: {old_beat_name} to {new_beat_name}")
-            #else:
+            else:
                # delete_beat_from_airtable(old_beat_name)
-               # file_monitor_logger.info(f"MP3 file moved out of folder and removed from Airtable: {old_beat_name}")
-        
-# Function to start the observer
-def start_observer():
-    path = Config.MONITOR_DIRECTORY # folder to monitor for new beats
-    if not path:
-        raise ValueError("The MONITOR_DIRECTORY environment variable is not set")
-    event_handler = MyHandler()
-    observer = Observer() # Set up the observer
-    observer.schedule(event_handler, path, recursive=False)
-    observer.start()
-    try:
-     while True: #keep the observer running
-        time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
-        observer.join()
+               # file_monitor_logger.info(f"MP3 file moved out of folder and removed from Airtable: {old_beat_name}")'''
+
+class BeatManager:
+    def __init__(self):
+        self.airtable_beats = Airtable('Beats')
+        self.airtable_contacts = Airtable('Contacts')
+        self.airtable_history_log = Airtable('HistoryLog')
+        self.logger = setup_logger("beat_manager")
+
+    def extract_metadata(self, file_path):
+        try:
+            audio = MP3(file_path)
+            beat_name = os.path.basename(file_path)
+            date_created = time.ctime(os.path.getmtime(file_path))
+            minutes, seconds = divmod(int(audio.info.length), 60)
+            length_formatted = f"{minutes}:{seconds:02d}"
+
+            metadata = {
+                'Beat Name': beat_name,
+                'File Path': file_path,
+                'Key': None, # To be implemented later
+                'BPM': None, # To be implemented later
+                'Length': length_formatted,
+                'Date Created': date_created,
+                'Genre': None, # users to fill this in later or implement a feature that suggests genres based on other metadata or analysis.
+            }
+            return metadata
+        except MutagenError as e:
+            self.logger.error(f"Error extracting metadata from {file_path}: {e}")
+            return None
+
+    def validate_mp3(self, file_path):
+        try:
+            MP3(file_path)  # Attempt to load the MP3 file's metadata
+            return True
+        except MutagenError:
+            return False
+
+    def add_beat_to_airtable(self, metadata):
+        response = self.airtable_beats.create_record(metadata)
+        if 'id' in response:
+            self.logger.info("Successfully added beat to Airtable.")
+        else:
+            self.logger.error(f"Failed to add beat to Airtable: {response.get('error', 'Unknown Error')}")
+
+    def scan_and_queue_existing_mp3s(self, directory):
+        valid_mp3_files = []
+        existing_mp3_files = glob.glob(os.path.join(directory, '*.mp3'))
+        sorted_files = sorted(existing_mp3_files, key=os.path.getmtime, reverse=True)
+
+        for file_path in sorted_files:
+            if self.validate_mp3(file_path):
+                valid_mp3_files.append(file_path)
+                metadata = self.extract_metadata(file_path)
+                if metadata:
+                    self.add_beat_to_airtable(metadata)
+                self.logger.info(f"Existing valid MP3 file added to queue: {file_path}")
+            else:
+                self.logger.warning(f"Existing file failed validation and was not added to queue: {file_path}")
+        return valid_mp3_files
+    
+    def update_email_queue_with_new_beats(self, email_queue, new_beats, contacts):
+        for beat_path in new_beats:
+            beat_metadata = self.extract_metadata(beat_path)
+            if beat_metadata:
+                self.add_beat_to_airtable(beat_metadata)
+                for contact in contacts:
+                    contact_email = contact['fields']['Email']
+                    contact_name = contact['fields']['Contact Name']
+                    composite_key = self.construct_composite_primary_key(contact_name, contact_email, beat_metadata['Beat Name'])
+                    
+                    # Check if the beat has already been sent this quarter
+                    if not self.check_record_exists_in_history_log(composite_key):
+                        # If not, add to email queue
+                        email_queue.put({'contact': contact, 'beat': beat_metadata['Beat Name'], 'beat_path': beat_path})
+                        
+                        # Log the event in 'HistoryLog'
+                        self.log_event_in_history_log(composite_key)
+    
+    def construct_composite_primary_key(self, contact_name, email, beat_name):
+        date_sent = datetime.now().strftime('%Y-%m-%d')
+        composite_key = f"{contact_name}-{email}-{beat_name}-{date_sent}"
+        return composite_key
+    
+    def check_record_exists(self, composite_key):
+    # Replace spaces with '+' and wrap the composite_key in quotes for the formula
+        formula = f"{{Composite Key}} = '{composite_key.replace(' ', '+')}'"
+        records = self.read_records(filter_formula=formula)
+        return len(records.get('records', [])) > 0
+
+
+    def log_event(self, composite_key):
+        data = {"Composite Key": composite_key}
+        self.airtable_history_log.create_record(data)
+
+    def process_beat_for_all_contacts(self, beat_path):
+        beat_metadata = self.extract_metadata(beat_path)
+        if beat_metadata:
+            self.add_beat_to_airtable(beat_metadata)
+            contacts = self.airtable_contacts.read_records()
+            for contact in contacts['records']:
+                email = contact['fields']['Email']
+                contact_name = contact['fields']['Contact Name']
+                composite_key = self.construct_composite_primary_key(contact_name, email, beat_metadata['Beat Name'])
+                if not self.airtable_history_log.check_record_exists(composite_key):
+                    # Logic to send the email
+                    send_email(subject="beats", body_text= "", to_email=email, attachment_file=beat_path)
+                    # Log the event in 'HistoryLog'
+                    self.airtable_history_log.create_record({"Composite Key": composite_key})
+
+
+

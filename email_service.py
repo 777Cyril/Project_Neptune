@@ -1,5 +1,8 @@
 import base64
 import os.path
+import os
+import requests
+import queue
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -8,11 +11,52 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-import os
 from logger import setup_logger
-import queue
 from config import Config
 from config import SCOPES
+from dotenv import load_dotenv
+from airtable import Airtable
+from datetime import datetime
+
+load_dotenv()
+
+class Airtable:
+    def __init__(self, table_name):
+        self.base_id = os.getenv('AIRTABLE_BASE_ID')
+        self.access_token = os.getenv('AIRTABLE_PERSONAL_ACCESS_TOKEN')
+        self.table_name = table_name
+        self.endpoint = f"https://api.airtable.com/v0/{self.base_id}/{self.table_name}"
+        self.headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+
+    def create_record(self, data):
+        response = requests.post(self.endpoint, json={"fields": data}, headers=self.headers)
+        return response.json()
+
+    def read_records(self, filter_formula=None):
+        params = {}
+        if filter_formula:
+            params['filterByFormula'] = filter_formula
+            
+        response = requests.get(self.endpoint, headers=self.headers, params=params)
+        return response.json()
+
+    def update_record(self, record_id, data):
+        record_endpoint = f"{self.endpoint}/{record_id}"
+        response = requests.patch(record_endpoint, json={"fields": data}, headers=self.headers)
+        return response.json()
+
+    def delete_record(self, record_id):
+        record_endpoint = f"{self.endpoint}/{record_id}"
+        response = requests.delete(record_endpoint, headers=self.headers)
+        return response.json()
+
+'''users_airtable_client = Airtable('Users')
+beats_airtable_client = Airtable('Beats')   
+contacts_airtable_client = Airtable('Contacts')
+historylog_airtable_client = Airtable('HistoryLog')'''
 
 # Setup logger for this service
 email_logger = setup_logger("email_service")
@@ -21,39 +65,14 @@ def process_email_queue(email_queue):
     while True:
         try:
             task = email_queue.get(block=True)
-            send_email("beat", "777", task['contact']['email'], Config, task['beat'])
+            subject = "beats"  # Example subject
+            body_text = "777"  # Example body text
+            to_email = task['contact']['email']  # Extracting email from the task
+            attachment_file = task['beat']
+            send_email(subject, body_text, to_email, attachment_file)
             email_queue.task_done()
         except queue.Empty:
             break  # Exit if the queue is empty
-
-"""def send_email(subject, body, to_addr, config, attachment_path, content_type='plain'):
-    msg = MIMEMultipart()   
-    msg['From'] = Config.EMAIL_HOST_USER
-    msg['To'] = to_addr
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, content_type))
-
-    # Attach an MP3 file
-    with open(attachment_path, 'rb') as attachment:
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(attachment.read())
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f'attachment; filename="{os.path.basename(attachment_path)}"')
-        msg.attach(part)
-
-    try:
-        server = smtplib.SMTP(config['email_host'], config['email_port'])
-        email_logger.info(f"Connecting to email server for sending to {to_addr}")
-        if config['email_use_tls']:
-            server.starttls()
-        server.login(config['email_host_user'], config['email_host_password'])
-        server.sendmail(config['email_host_user'], to_addr, msg.as_string())
-        email_logger.info(f"Email sent successfully to {to_addr}")
-    except Exception as e:
-        email_logger.error(f"Failed to send email to {to_addr}: {e}")
-    finally:
-        server.quit()
-        email_logger.info("Email server connection closed")"""
 
 def get_gmail_service():
     creds = None
@@ -77,7 +96,7 @@ def get_gmail_service():
     service = build('gmail', 'v1', credentials=creds)
     return service
 
-def send_email(subject, body_text, to_email, attachment_file=None):
+def send_email(subject, body_text, to_email, attachment_file):
     service = get_gmail_service()
     message = MIMEMultipart()
     message['to'] = to_email
