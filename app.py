@@ -3,6 +3,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 import os
 import pathlib
 from dotenv import load_dotenv
+from config import SCOPES
 
 load_dotenv()
 
@@ -21,9 +22,6 @@ def index():
 
 # This variable should be set to the name of the file with your OAuth 2.0 credentials.
 CLIENT_SECRETS_FILE = "client_secret.json"
-
-# This specifies which portions of the user's Google account you are requesting access to.
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 
 @app.route('/authorize')
 def authorize():

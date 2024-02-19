@@ -10,17 +10,17 @@ import threading
 import random
 
 load_dotenv()  # This loads the .env file at the root of the project
+
 print(os.getenv('FLASK_RUN_PORT'))
 
 # Initialize the email queue globally
 email_queue = queue.Queue()
 
-os.makedirs(Config.LOG_DIR, exist_ok=True)  # Create the log directory if it doesn't exist
-
 def update_email_queue(email_queue, new_beats, contacts):
     # Extract existing tasks from the queue
     existing_tasks = list(email_queue.queue)
     existing_beats = [task['beat'] for task in existing_tasks]
+    # Update Email Queue Logic to add a check against the history log to ensure compliance with the once-a-quarter rule.
 
     # Combine new and existing beats
     all_beats = list(set(existing_beats + new_beats))
@@ -52,8 +52,9 @@ def ensure_log_directory_exists():
     if not os.path.exists(Config.LOG_DIR):
         os.makedirs(Config.LOG_DIR)
 
+ensure_log_directory_exists()
+
 if __name__ == '__main__':
-    ensure_log_directory_exists()
     valid_beats = scan_and_queue_existing_mp3s(Config.MONITOR_DIRECTORY)
     populate_email_queue(valid_beats, contacts)
 

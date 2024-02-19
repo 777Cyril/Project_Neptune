@@ -34,6 +34,11 @@ class Config:
 
     # Database Configuration (if applicable)
 
+
+    # GMAIL SCOPES
+    SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+
+
     # API keys for external services
 
 # You can then import this Config class in other modules as needed
