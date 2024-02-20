@@ -5,6 +5,9 @@ from datetime import datetime
 # Load environment variables from .env file
 load_dotenv()
 
+# GMAIL SCOPES
+SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+
 class Config:
     # General Application Settings
     APP_ENV = os.getenv('APP_ENV', 'development')
@@ -33,10 +36,6 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
 
     # Database Configuration (if applicable)
-
-
-    # GMAIL SCOPES
-    SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 
 
     # API keys for external services

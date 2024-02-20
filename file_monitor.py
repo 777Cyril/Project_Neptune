@@ -11,6 +11,7 @@ from logger import setup_logger
 from config import Config
 from datetime import datetime
 from email_service import send_email
+from airtable_client import access_token
 
 
 file_monitor_logger = setup_logger("file_monitor")
@@ -85,9 +86,9 @@ class MyHandler(FileSystemEventHandler):
 
 class BeatManager:
     def __init__(self):
-        self.airtable_beats = Airtable('Beats')
-        self.airtable_contacts = Airtable('Contacts')
-        self.airtable_history_log = Airtable('HistoryLog')
+        self.airtable_beats = Airtable('Beats', access_token)
+        self.airtable_contacts = Airtable('Contacts', access_token)
+        self.airtable_history_log = Airtable('HistoryLog', access_token)
         self.logger = setup_logger("beat_manager")
 
     def extract_metadata(self, file_path):

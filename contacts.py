@@ -1,10 +1,10 @@
 # contacts.py
 
-contacts = [
+'''contacts = [
     {'name': 'cyril', 'email': 'cozy.bul@gmail.com'},
     {'name': 'cyril', 'email': 'dowuona.cyril@gmail.com'},
     {'name': 'OnTheRadar', 'email': 'theotrstudio@gmail.com'}
-    ]
+    ]'''
 
 # contacts = [ 
    # {'name': 'Baby Osama', 'email': 'babyobeatz@gmail.com'},

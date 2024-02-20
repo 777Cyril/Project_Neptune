@@ -1,7 +1,6 @@
 import base64
 import os.path
 import os
-import requests
 import queue
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -12,51 +11,12 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from logger import setup_logger
-from config import Config
 from config import SCOPES
 from dotenv import load_dotenv
 from airtable import Airtable
 from datetime import datetime
 
 load_dotenv()
-
-class Airtable:
-    def __init__(self, table_name):
-        self.base_id = os.getenv('AIRTABLE_BASE_ID')
-        self.access_token = os.getenv('AIRTABLE_PERSONAL_ACCESS_TOKEN')
-        self.table_name = table_name
-        self.endpoint = f"https://api.airtable.com/v0/{self.base_id}/{self.table_name}"
-        self.headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json"
-        }
-
-    def create_record(self, data):
-        response = requests.post(self.endpoint, json={"fields": data}, headers=self.headers)
-        return response.json()
-
-    def read_records(self, filter_formula=None):
-        params = {}
-        if filter_formula:
-            params['filterByFormula'] = filter_formula
-            
-        response = requests.get(self.endpoint, headers=self.headers, params=params)
-        return response.json()
-
-    def update_record(self, record_id, data):
-        record_endpoint = f"{self.endpoint}/{record_id}"
-        response = requests.patch(record_endpoint, json={"fields": data}, headers=self.headers)
-        return response.json()
-
-    def delete_record(self, record_id):
-        record_endpoint = f"{self.endpoint}/{record_id}"
-        response = requests.delete(record_endpoint, headers=self.headers)
-        return response.json()
-
-'''users_airtable_client = Airtable('Users')
-beats_airtable_client = Airtable('Beats')   
-contacts_airtable_client = Airtable('Contacts')
-historylog_airtable_client = Airtable('HistoryLog')'''
 
 # Setup logger for this service
 email_logger = setup_logger("email_service")

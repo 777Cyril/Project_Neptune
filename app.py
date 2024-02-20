@@ -1,9 +1,8 @@
+from config import SCOPES
 from flask import Flask, jsonify, request, session, redirect, url_for
 from google_auth_oauthlib.flow import InstalledAppFlow
 import os
-import pathlib
 from dotenv import load_dotenv
-from config import SCOPES
 
 load_dotenv()
 

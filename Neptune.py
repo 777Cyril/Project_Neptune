@@ -1,9 +1,9 @@
-from dotenv import load_dotenv
 from app import app
-import os
 from config import Config
+from dotenv import load_dotenv
+import os
 import queue
-from file_monitor import scan_and_queue_existing_mp3s, start_observer
+from file_monitor import start_observer
 from email_service import process_email_queue
 import threading
 import random
@@ -64,13 +64,16 @@ def ensure_log_directory_exists():
 if __name__ == '__main__':
     # Initial setup: Ensure log directory exists and populate the email queue
     ensure_log_directory_exists()
-    valid_beats = scan_and_queue_existing_mp3s(Config.MONITOR_DIRECTORY)
+
+    beat_manager = BeatManager()
+
+    valid_beats = beat_manager.scan_and_queue_existing_mp3s(Config.MONITOR_DIRECTORY)
+    
     populate_email_queue(valid_beats)
     
     # Start the email processing thread
     email_thread = threading.Thread(target=process_email_queue, args=(email_queue,))
     email_thread.start()
-
 
     # Start the filesystem observer thread
     observer_thread = threading.Thread(target=start_observer) # Start the observer in a new thread
