@@ -12,7 +12,9 @@ from config import Config
 from datetime import datetime
 from email_service import send_email
 from airtable_client import access_token
+from dotenv import load_dotenv
 
+load_dotenv()
 
 file_monitor_logger = setup_logger("file_monitor")
 
@@ -86,6 +88,11 @@ class MyHandler(FileSystemEventHandler):
 
 class BeatManager:
     def __init__(self):
+        access_token = os.getenv('AIRTABLE_PERSONAL_ACCESS_TOKEN')
+
+        if not access_token:
+            raise ValueError("AIRTABLE_PERSONAL_ACCESS_TOKEN environment variable is not set or empty.")
+        
         self.airtable_beats = Airtable('Beats', access_token)
         self.airtable_contacts = Airtable('Contacts', access_token)
         self.airtable_history_log = Airtable('HistoryLog', access_token)
